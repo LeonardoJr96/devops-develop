@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: front-vue
+spec:
+  containers:
+    - name: front-vue
+      image: leonardojr96/front-vue
+      ports:
+        - containerPort: 8000

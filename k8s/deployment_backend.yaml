@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-django
+spec:
+    replicas: 2
+    selector:
+        matchLabels:
+        app: backend-django
+    template:
+        metadata:
+        labels:
+          app: backend-django
+        spec:
+        containers:
+        - name: backend-django
+          image: leonardojr96/backend-django
+          ports:
+          - containerPort: 8000

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-mysql
+spec:
+  containers:
+    - name: db-mysql
+      image: leonardojr96/db-mysql
+      ports:
+        - containerPort: 8000

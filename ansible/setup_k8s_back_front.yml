@@ -1,0 +1,235 @@
+---
+- name: Instalar o kind
+  hosts: web-back-servers
+  become: yes
+  tasks:
+
+  - name: Instalar dependências do Docker
+    ansible.builtin.apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+      state: present
+
+  - name: Adicionar chave GPG do Docker
+    ansible.builtin.apt_key:
+      url: https://download.docker.com/linux/debian/gpg
+      state: present
+
+  - name: Adicionar repositório do Docker
+    ansible.builtin.apt_repository:
+      repo: >
+        deb [arch=amd64] https://download.docker.com/linux/debian
+        {{ ansible_distribution_release }} stable
+      state: present
+
+  - name: Instalar Docker Engine
+    ansible.builtin.apt:
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+      state: present
+      update_cache: true
+
+  - name: Adicionar usuário vagrant ao grupo docker
+    ansible.builtin.user:
+      name: vagrant
+      groups: docker
+      append: true
+
+  - name: Baixar o Kind
+    ansible.builtin.get_url:
+      url: https://kind.sigs.k8s.io/dl/v0.28.0/kind-linux-amd64
+      dest: /usr/local/bin/kind
+  
+  - name: Dando permissão para o kind
+    file: dest=/usr/local/bin/kind mode=a+x
+
+
+- name: Install KubeCtl
+  become: yes
+
+  tasks:
+  - name: Check if home directory exists
+    stat:
+      path: /home/{{ ansible_user }}
+    register: home_dir
+
+  - name: Create home directory if it doesn't exist
+    file:
+      path: /home/{{ ansible_user }}
+      state: directory
+    when: not home_dir.stat.exists
+
+  - name: Check for kubectl binary in home directory
+    stat:
+      path: /home/{{ ansible_user }}/kubectl
+    register:
+      kubectl_binary_home
+
+  - name: Check for kubectl checksum in home directory
+    stat:
+      path: /home/{{ ansible_user }}/kubectl
+    register:
+      kubectl_chksum_home
+
+  - name: Delete kubectl binary from home directory
+    file:
+      path: /home/{{ ansible_user }}/kubectl
+      state: absent
+    when: kubectl_binary_home.stat.exists
+
+  - name: Delete checksum file from home directory
+    file:
+      path: /home/{{ ansible_user }}/kubectl.sha256
+      state: absent
+    when: kubectl_chksum_home.stat.exists
+
+  - name: Get latest kubectl version
+    uri:
+      url: https://dl.k8s.io/release/stable.txt
+      return_content: yes
+      status_code: 200, 304
+    register: version
+
+  - name: Download the latest kubectl release
+    uri:
+      url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl
+      dest: /home/{{ ansible_user }}
+      status_code: 200, 304
+    register: kubectl
+
+  - name: Download the kubectl checksum file
+    uri:
+      url: https://dl.k8s.io/{{ version.content }}/bin/linux/amd64/kubectl.sha256
+      dest: /home/{{ ansible_user }}
+      status_code: 200, 304
+
+  - name: Validate the kubectl binary against the checksum file
+    shell: echo "$(cat /home/{{ ansible_user }}/kubectl.sha256)"
+    register: source_chksum
+
+  - name: Compute new checksum of kubectl binary
+    shell: sha256sum /home/{{ ansible_user }}/kubectl | awk '{print $1}'
+    register: new_chksum
+
+  - name: Assert that the kubectl binary is OK
+    vars:
+      expected: "kubectl: OK"
+    assert:
+      that:
+        - source_chksum.stdout == new_chksum.stdout
+      fail_msg: "Checksum does not match {{ source_chksum.stdout }} != {{ new_chksum.stdout }}"
+      success_msg: "Successfully validated"
+
+  - name: Check if kubectl installed in /usr/local/bin
+    stat:
+      path: /usr/local/bin/kubectl
+    register: kubectl_binary_usr_local_bin
+
+  - name: Delete kubectl binary from /usr/local/bin if it exists
+    file:
+      path: /usr/local/bin/kubectl
+      state: absent
+    when: kubectl_binary_home.stat.exists
+
+  - name: Copy kubectl and change permissions
+    copy:
+      src: "{{ kubectl.path }}"
+      remote_src: yes
+      dest: /usr/local/bin/kubectl
+      owner: root
+      group: root
+      mode: "+x"
+
+  - name: Check if kubectl is installed
+    shell: kubectl version --client
+    register: client
+    failed_when: client.rc > 1
+
+  - name: remove downloaded binaries from home
+    file:
+      path: /home/{{ ansible_user }}/kubectl
+      state: absent
+
+  - name: remove downloaded checksums from home
+    file:
+      path: /home/{{ ansible_user }}/kubectl.sha256
+      state: absent
+  
+  - name: Verificar se o cluster 'dev-front-back' já existe
+    command: kind get clusters
+    register: kind_clusters
+    changed_when: false
+
+  - name: Deletar cluster antigo se já existir
+    command: kind delete cluster --name dev-front-back
+    when: "'dev-front-back' in kind_clusters.stdout"
+
+  - name: Criar diretório de configuração do Kind
+    file:
+      path: ./kind
+      state: directory
+      owner: vagrant
+      group: vagrant
+      mode: '0755'
+
+  - name: Criar arquivo de configuração do cluster
+    copy:
+      dest: ./kind/config.yaml
+      content: |
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          
+  - name: Criar o cluster com Kind
+    command: >
+      kind create cluster
+      --config ./kind/config.yaml
+      --name dev-front-back
+  
+  - name: inserir e executar deployment
+    command: >
+      Kubectl apply ./k8s/deployment_backend.yaml || Kubectl apply ./k8s/deployment_frontend.yaml
+
+  - name: inserir e executar service
+      Kubectl apply ./k8s/service_backend.yaml || Kubectl apply ./k8s/service_frontend.yaml
+
+  - name: inserir e executar kustomization
+    command: >
+      Kubectl apply ./k8s/kustomization.yaml
+        
+- name: Instalando o Argocd
+  become: yes
+
+  tasks:
+  - name: Criando o Namespace
+    command: >
+      kubectl create namespace argocd
+
+  - name: Instalando o Argocd
+    command: >
+      kubectl apply 
+      -n argocd 
+      -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  
+  - name: Espera o Argocd Executar
+    command: >
+      kubectl wait
+      --for=condition=available
+      --timeout=180s deployment 
+      --all
+      -n argocd
+
+  - name: Alterar o Service do ArgoCD para NodePort
+    command: >
+      kubectl patch svc argocd-server
+      -n argocd
+      -p '{"spec": {"type": "NodePort"}}'

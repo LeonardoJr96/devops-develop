@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend-django
+spec:
+  containers:
+    - name: backend-django
+      image: leonardojr96/backend-django
+      ports:
+        - containerPort: 8000

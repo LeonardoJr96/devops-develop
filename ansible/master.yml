@@ -1,0 +1,4 @@
+- import_playbook: setup_dbmysql.yml
+- import_playbook: setup_frontend_nginx_vue.yml
+- import_playbook: setup_backenddjango.yml
+- import_playbook: setup_default_back_front.yml

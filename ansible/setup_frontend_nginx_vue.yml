@@ -1,0 +1,74 @@
+---
+- name: Configurar frontend Vue em produção com NGINX
+  hosts: web-back-servers
+  become: yes
+  vars:
+    repo_url: https://github.com/LeonardoJr96/devops-frontend.git
+    app_dir: /var/www/vueapp
+
+  tasks:
+    - name: Instalar Node.js e npm
+      apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+        update_cache: yes
+
+    - name: Instalar o pacote serve
+      npm:
+        name: serve
+        global: yes
+
+    - name: Clonar repositório do frontend
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: develop
+        force: yes
+
+    - name: Instalar dependências do projeto
+      npm:
+        path: "{{ app_dir }}"
+
+    - name: Gerar build de produção
+      command: npm run build
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Instalar NGINX
+      apt:
+        name: nginx
+        state: present
+
+    - name: Remover config padrão do NGINX
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Criar nova config do NGINX para Vue
+      copy:
+        dest: /etc/nginx/sites-available/vueapp
+        content: |
+          server {
+              listen 80;
+              server_name localhost;
+
+              root {{ app_dir }}/dist;
+              index index.html;
+
+              location / {
+                  try_files $uri $uri/ /index.html;
+              }
+          }
+
+    - name: Ativar config do Vue no NGINX
+      file:
+        src: /etc/nginx/sites-available/vueapp
+        dest: /etc/nginx/sites-enabled/vueapp
+        state: link
+
+    - name: Reiniciar NGINX
+      service:
+        name: nginx
+        state: restarted
