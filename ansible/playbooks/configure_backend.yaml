@@ -2,8 +2,8 @@
   hosts: k8s_backend
   become: yes
   vars:
-    argocd_app_name: "devops-2-backend"
-    argocd_git_repo_url: ""
+    argocd_app_name: "backend-dev"
+    argocd_git_repo_url: "https://github.com/LeonardoJr96/backend-devops.git"
     argocd_git_target_revision: "main"
     argocd_git_path: "k8s"
     argocd_app_namespace: "default"

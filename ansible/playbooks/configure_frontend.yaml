@@ -1,9 +1,9 @@
 - name: Configurar ArgoCD frontend
-  hosts: k8s_frontend
+  hosts: k8s_fullstack
   become: yes
   vars:
     argocd_app_name: "devops-2-frontend"
-    argocd_git_repo_url: "
+    argocd_git_repo_url: "https://github.com/LeonardoJr96/frontend-devops.git"
     argocd_git_target_revision: "main"
     argocd_git_path: "k8s"
     argocd_app_namespace: "default"

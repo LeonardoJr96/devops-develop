@@ -1,5 +1,5 @@
 - name: Instalar ArgoCD no frontend e backend
-  hosts: k8s_frontend,k8s_backend
+  hosts: k8s_fullstack
   become: yes
 
   tasks:
@@ -41,3 +41,14 @@
     - name: Mostrar porta NodePort do ArgoCD
       debug:
         msg: "ArgoCD Server NodePort: {{ argocd_nodeport.stdout }}"
+
+    - name: Obter IP externo do node
+      shell: hostname -I | awk '{print $1}'
+      register: external_ip
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+
+    - name: Mostrar endereço externo de acesso ao ArgoCD
+      debug:
+        msg: "Acesse o ArgoCD via: http://{{ external_ip.stdout }}:{{ argocd_nodeport.stdout }}"
+
