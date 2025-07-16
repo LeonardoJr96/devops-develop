@@ -91,7 +91,7 @@ Durante o desenvolvimento deste projeto, explorei diferentes abordagens para est
 
 Como solução, criei um repositório específico para a infraestrutura, contendo:
 
-- Configuração para levantar as 3 VMs
+- Configuração para levantar as 2 VMs
 - Instalação do Kind em cada uma
 - Setup automatizado do ArgoCD
 - Instalação do PostgreSQL na VM do banco de dados
