@@ -1,5 +1,5 @@
 # Trabalho Final – Fundamentos de DevOps  
-**Aluno:** Gabriel Silveira
+**Aluno:** Leonardo de Almeida Junior
 
 ---
 
