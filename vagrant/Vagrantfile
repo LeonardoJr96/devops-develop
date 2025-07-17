@@ -1,8 +1,8 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "debian12"
 
-  names = ["backend", "frontend", "db"]
-  ips = ["192.168.56.152", "192.168.56.151", "192.168.56.153"]
+  names = ["fullstack", "db"]
+  ips = ["192.168.56.151", "192.168.56.152"]
 
   names.each_with_index do |name, i|
     config.vm.define name do |node|
@@ -10,10 +10,9 @@ Vagrant.configure("2") do |config|
       node.vm.network "private_network", ip: ips[i]
 
       case name
-      when "backend"
+      when "fullstack"
         node.vm.network "forwarded_port", guest: 30797, host: 30001
         node.vm.network "forwarded_port", guest: 8080, host: 8080
-      when "frontend"
         node.vm.network "forwarded_port", guest: 30797, host: 30002
         node.vm.network "forwarded_port", guest: 8000, host: 8000
       when "db"
